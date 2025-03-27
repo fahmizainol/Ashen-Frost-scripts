@@ -25,15 +25,16 @@ class GoatAI
 
     def pbProcessAITurn
         print "inspecting self"
-        print(@battle.battlers.inspect)
+        # print(@battle.battlers[1].pokemon)
+        # PBDebug.log(@battle.battlers[1].moves)
         # @move_scores = pbGetMoveScore
-        print @move_scores
+        # print @move_scores
     end
 
     def pbGetMoveScore
         # fake_player_mon = pbMakeFakeBattler(@battle.battlers[0].pokemon, false)
         move_scores = [[-1, -1, -1, -1]]
-        print(@battle.battlers[1].inspect)
+        # print(@battle.battlers[1].pokemon)
         # @battle.battlers[1].moves.each_with_index do |move, i|
         #     move_scores[0][i] = pbReduceDamage(@battle.battlers[1], @battle.battlers[0])
         #     print(move_scores)
