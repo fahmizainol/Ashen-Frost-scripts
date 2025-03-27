@@ -828,6 +828,7 @@ module Compiler
   end
   
   def main
+    return # ADDED
     return if !$DEBUG
     begin
       dataFiles = [
