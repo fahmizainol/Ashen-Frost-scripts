@@ -27,18 +27,30 @@ class GoatAI
         print "inspecting self"
         # print(@battle.battlers[1].pokemon)
         # PBDebug.log(@battle.battlers[1].moves)
-        # @move_scores = pbGetMoveScore
-        # print @move_scores
+        @move_scores = pbGetMoveScore
+        # @move_scores
     end
 
     def pbGetMoveScore
-        # fake_player_mon = pbMakeFakeBattler(@battle.battlers[0].pokemon, false)
+        fake_player_mon = pbMakeFakeBattler(@battle.battlers[0].displayPokemon, false)
         move_scores = [[-1, -1, -1, -1]]
+        # echo "fake hp #{fake_player_mon.totalhp}"
+        # echo "fake mon abilioty #{fake_player_mon.hasActiveAbility?(:ADAPTABILITY)}"
         # print(@battle.battlers[1].pokemon)
-        # @battle.battlers[1].moves.each_with_index do |move, i|
-        #     move_scores[0][i] = pbReduceDamage(@battle.battlers[1], @battle.battlers[0])
-        #     print(move_scores)
-        # end
+        @battle.eachSameSideBattler(1) do |b|
+            b.eachMoveWithIndex do |move, i|
+                move.pbCheckDamageAbsorption(b, @battle.battlers[0])
+                # move.pbCheckDamageAbsorption(b, fake_player_mon)
+                move.pbCalcDamage(b, fake_player_mon)
+                dmg =move.pbReduceDamage(b, fake_player_mon)
+                move_scores[0][i] = dmg
+            end
+            # move_scores[0][i] = pbReduceDamage(@battle.battlers[1], @battle.battlers[0])
+            # echo(move_scores)
+            # echo "test: #{test}"
+            # echo b.moves
+        end
+        echo "move_scores: #{move_scores}"
         return move_scores
     end
 

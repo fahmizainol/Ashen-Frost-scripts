@@ -278,6 +278,7 @@ class Battle::Move
       defStage = 6 if target.damageState.critical && defStage > 6
       defense = (defense.to_f * stageMul[defStage] / stageDiv[defStage]).floor
     end
+    echo "pbcalcdamage baseDmg: #{baseDmg}, atk: #{atk}, defense: #{defense}\n"
     # Calculate all multiplier effects
     multipliers = {
       :base_damage_multiplier  => 1.0,
@@ -286,6 +287,9 @@ class Battle::Move
       :final_damage_multiplier => 1.0
     }
     pbCalcDamageMultipliers(user, target, numTargets, type, baseDmg, multipliers)
+    # multipliers[:final_damage_multiplier] += 2
+    # dtest(multipliers)
+    echo "pbcalcdamage multipliers: #{multipliers}\n"
     # Main damage calculation
     baseDmg = [(baseDmg * multipliers[:base_damage_multiplier]).round, 1].max
     atk     = [(atk     * multipliers[:attack_multiplier]).round, 1].max
@@ -293,6 +297,11 @@ class Battle::Move
     damage  = ((((2.0 * user.level / 5) + 2).floor * baseDmg * atk / defense).floor / 50).floor + 2
     damage  = [(damage * multipliers[:final_damage_multiplier]).round, 1].max
     target.damageState.calcDamage = damage
+    echo "pbcalcdamage #{damage}\n"
+  end
+
+  def dtest(multiplier)
+    multiplier[:final_damage_multiplier] +=2
   end
 
   def pbCalcDamageMultipliers(user, target, numTargets, type, baseDmg, multipliers)
@@ -469,6 +478,8 @@ class Battle::Move
     if !self.is_a?(Battle::Move::Confusion) && $PokemonGlobal.damage_variance == 0 # DemICE
       random = 85 + @battle.pbRandom(16)
       multipliers[:final_damage_multiplier] *= random / 100.0
+      echo "multipliers 481: #{multipliers}\n"
+      
     end
     # STAB
     if type && user.pbHasType?(type)
@@ -478,8 +489,11 @@ class Battle::Move
         multipliers[:final_damage_multiplier] *= 1.5
       end
     end
+    echo "multipliers 492: #{multipliers}\n"
     # Type effectiveness
     multipliers[:final_damage_multiplier] *= target.damageState.typeMod.to_f / Effectiveness::NORMAL_EFFECTIVE
+    echo "typemod: #{ target.damageState.typeMod.to_f}\n"
+    echo "effectiveness: #{  Effectiveness::NORMAL_EFFECTIVE}\n"
     # Burn
     if user.status == :BURN && physicalMove? && damageReducedByBurn? &&
        !user.hasActiveAbility?(:GUTS)
@@ -512,6 +526,7 @@ class Battle::Move
     if target.effects[PBEffects::Minimize] && tramplesMinimize?
       multipliers[:final_damage_multiplier] *= 2
     end
+    echo "multipliers 524: #{multipliers}\n"
     # Move-specific base damage modifiers
     multipliers[:base_damage_multiplier] = pbBaseDamageMultiplier(multipliers[:base_damage_multiplier], user, target)
     # Move-specific final damage modifiers

@@ -88,12 +88,52 @@ end
 
 class Battle::Move
   
-    alias ai_pbReduceDamage pbReduceDamage
     def pbReduceDamage(user, target)
-      ai_pbReduceDamage(user, target)
-      hp_lost = target.damageState.hpLost
-      total_hp_lost = target.damageState.totalHPLost
-      return total_hp_lost
+		damage = target.damageState.calcDamage
+		echo "damage initial: #{damage}\n"
+		# Substitute takes the damage
+		if target.damageState.substitute
+		  damage = target.effects[PBEffects::Substitute] if damage > target.effects[PBEffects::Substitute]
+		  target.damageState.hpLost       = damage
+		  target.damageState.totalHPLost += damage
+		  return damage
+		end
+		# Disguise/Ice Face takes the damage
+		return if target.damageState.disguise || target.damageState.iceFace
+		# Target takes the damage
+		if damage >= target.hp
+		  damage = target.hp
+		  # Survive a lethal hit with 1 HP effects
+		  if nonLethal?(user, target)
+			damage -= 1
+		  elsif target.effects[PBEffects::Endure]
+			target.damageState.endured = true
+			damage -= 1
+		  elsif damage == target.totalhp
+			if target.hasActiveAbility?(:STURDY) && !@battle.moldBreaker
+			  target.damageState.sturdy = true
+			  damage -= 1
+			elsif target.hasActiveItem?(:FOCUSSASH) && target.hp == target.totalhp
+			  target.damageState.focusSash = true
+			  damage -= 1
+			elsif target.hasActiveItem?(:FOCUSBAND) && @battle.pbRandom(100) < 10
+			  target.damageState.focusBand = true
+			  damage -= 1
+			elsif Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+				  target.pbOwnedByPlayer? && !target.mega?
+			  chance = [0, 0, 0, 10, 15, 25][target.affection_level]
+			  if chance > 0 && @battle.pbRandom(100) < chance
+				target.damageState.affection_endured = true
+				damage -= 1
+			  end
+			end
+		  end
+		end
+		damage = 0 if damage < 0
+		target.damageState.hpLost       = damage
+		target.damageState.totalHPLost += damage
+		echo "pbreduce dmg after: #{damage}\n"
+		return damage
     end
 end
 
