@@ -32,6 +32,7 @@ class PBAI
       list = [list] if !list.is_a?(Array)
       list.each do |code|
       next if code.nil?
+        # echoln "code: #{code}"
         newscore = code.call(score,ai,battler,target)
         score = newscore if newscore.is_a?(Numeric)
       end
@@ -431,18 +432,18 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
 end
 
 # Switch if toxic spikes on the field and we have a grounded Poison that won't be 2HKO'd
-PBAI::SwitchHandler.add_out do |score,ai,battler,target|
-  pos = ai.battle.positions[battler.index]
-  party = ai.battle.pbParty(battler.index)
-  tspikes = $toxic_spikes[target.idxOpposingSide] == 0 ? 0 : $toxic_spikes[target.idxOpposingSide]
-  if tspikes > 0
-    if party.any? { |pkmn| pkmn.hasType?(:POISON) && pkmn.grounded? && !target.moves.any? {|move| Effectiveness.super_effective_type?(move.type,pkmn.types[0],pkmn.types[1])}}
-      score += tspikes
-      PBAI.log_switch_out(tspikes,"Toxic spikes removal")
-    end
-  end
-  next score
-end
+# PBAI::SwitchHandler.add_out do |score,ai,battler,target|
+#   pos = ai.battle.positions[battler.index]
+#   party = ai.battle.pbParty(battler.index)
+#   tspikes = $toxic_spikes[target.idxOpposingSide] == 0 ? 0 : $toxic_spikes[target.idxOpposingSide]
+#   if tspikes > 0
+#     if party.any? { |pkmn| pkmn.hasType?(:POISON) && pkmn.grounded? && !target.moves.any? {|move| Effectiveness.super_effective_type?(move.type,pkmn.types[0],pkmn.types[1])}}
+#       score += tspikes
+#       PBAI.log_switch_out(tspikes,"Toxic spikes removal")
+#     end
+#   end
+#   next score
+# end
 
 # Switch determined by being choiced
 PBAI::SwitchHandler.add_out do |score,ai,battler,target|
@@ -550,7 +551,9 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
     best = 0
     target.moves.each do |move|
       next if move.statusMove?
-      dmg = mn.get_potential_move_damage(target, move)
+      echoln "i m switchahandler"
+      # echoln "target: #{target}"
+      dmg = target.get_potential_move_damage(mon, move) # FIXME: battler should be passed here since we're calcing the player's move against ai
       moves += 1 if dmg >= mon.hp/2
       best += 1 if dmg < mon.hp/2
     end
@@ -558,7 +561,8 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
     $switch_flags[:has_se_move] << pkmn if moves > 0
     PBAI.log("Good moves against #{pkmn.name}: #{moves}")
     if moves == 0 && best > 0
-      add += 1
+      add += 1 # So this determined by how much good switch ins ai has, not how good the potential switch in 
+      score += 3
     end
   end
   if add > 0

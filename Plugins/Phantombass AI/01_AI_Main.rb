@@ -643,6 +643,9 @@ class PBAI
     end
 
     def pbCalcTypeMod(moveType, user, target)
+      # echoln "moveType: #{moveType}"
+      # echoln "user: #{user.name}"
+      # echoln "target: #{target.name}"
       return Effectiveness::NORMAL_EFFECTIVE if !moveType
       return Effectiveness::NORMAL_EFFECTIVE if moveType == :GROUND &&
                                                 target.pbHasType?(:FLYING) &&
@@ -762,6 +765,8 @@ class PBAI
         :final_damage_multiplier => 1.0
       }
       mult = pbCalcDamageMultipliers(user, target, numTargets, @move.type, baseDmg, multipliers)
+      # echoln "mult: #{mult}"
+      
       # Main damage calculation
       baseDmg = [(baseDmg * mult[:base_damage_multiplier]).round, 1].max
       atk     = [(atk     * mult[:attack_multiplier]).round, 1].max
@@ -970,7 +975,13 @@ class PBAI
           end
         end
         # Type effectiveness
+        # echoln "final damage before: #{multipliers[:final_damage_multiplier]}"
+        # echoln "typemod: #{target.damageState.typeMod.to_f}"
+        # echoln "effectiveness #{Effectiveness::NORMAL_EFFECTIVE}\n"
+
         multipliers[:final_damage_multiplier] *= target.damageState.typeMod.to_f / Effectiveness::NORMAL_EFFECTIVE
+        # echoln "final damage after: #{multipliers[:final_damage_multiplier]}"
+        
         # Burn
         if user.status == :BURN && @move.physicalMove? && @move.damageReducedByBurn? &&
            !user.hasActiveAbility?(:GUTS)
@@ -1628,6 +1639,7 @@ class PBAI
         next if !targ
         if self.has_killing_move?(targ)
           skip_switch = true
+          echoln "\n i have killing move"
           break
         end
       end
@@ -1703,7 +1715,9 @@ class PBAI
       str = "=" * 30
       weights = scores.map { |e| e[1] }
       total = weights.sum
-      if $DEBUG == true
+      logga = true
+      if logga == true
+      # if true
         scores.each_with_index do |e, i|
           #finalPerc = total == 0 ? 0 : (weights[i] / total.to_f * 100).round
           if i == 0
@@ -2066,6 +2080,8 @@ class PBAI
        str += "\nEnd flag assignment."
      else
       str += "Flags found.\nEnd flag search"
+      # str += "\n#{$spam_block_flags}\n\n"
+      # echoln $spam_block_flags
      end
      PBAI.log(str)
     end
@@ -2121,8 +2137,8 @@ class PBAI
       PBAI.log_ai("Switch out Score: #{score}")
       if score > highest_move_score
         switch = true
-      elsif score == highest_move_score
-        switch = rand(2) == 1
+      # elsif score == highest_move_score
+      #   switch = rand(2) == 1
       else
         switch = false
       end
@@ -2137,7 +2153,8 @@ class PBAI
       move_scores = move_scores.sort
       party = @battle.pbParty(@battler.index)
       target_choice = $spam_block_flags[:choice]
-      switch = self.has_role?(:NONE) ? false : ai_should_switch?(move_scores)
+      switch = ai_should_switch?(move_scores)
+      # switch = self.has_role?(:NONE) ? false : ai_should_switch?(move_scores)
       return [0,0] if !switch
       return [0,0] if party.length == 1
       return [0,0] if !self.can_switch?
@@ -2198,6 +2215,7 @@ class PBAI
       return [0, 0]
     end
 
+    # TODO: Tweak some of these
     def get_optimal_switch_choice
       str = "="*30
       str += "\nNow determining optimal switch choice"
@@ -2318,6 +2336,7 @@ class PBAI
         self_party.push(mon) if prj.pokemon.owner.id == self.pokemon.owner.id && !mon.fainted?
       end
       scores = self_party.map do |pkmn|
+        str += "\n\nScoring for #{pkmn.name}"
         proj = @ai.pokemon_to_projection(pkmn)
         if !proj
           raise "No projection found for party member #{pkmn.name}"
@@ -2442,7 +2461,8 @@ class PBAI
       score = PBAI::ScoreHandler.trigger_final(score, @ai, self, target, ai_move)
       $test_trigger = false
       PBAI.log_score("= #{score}")
-      PBAI.display_score_messages if $DEBUG
+      # PBAI.display_score_messages if $DEBUG
+      PBAI.display_score_messages 
       return score
     end
     # Calculates adjusted base power of a move.
@@ -3095,6 +3115,7 @@ class PBAI
       mov = AI_Move.new(@ai,move)
       calcType = mov.pbCalcType(user)
       mon.damageState.typeMod = mov.pbCalcTypeMod(calcType, user, mon)
+      # echoln "mon.damageState.typeMod: #{mon.damageState.typeMod}\n"
       ret = mov.pbCalcDamage(user, mon)
       sturdy = (target.hasActiveAbility?(:STURDY) && !@battle.moldBreaker || target.hasActiveItem?(:FOCUSSASH))
       if ret >= target.hp && target.hp == target.totalhp && sturdy
@@ -3106,6 +3127,7 @@ class PBAI
       if user && move.id == :FINALGAMBIT
         ret = user.hp
       end
+      # echo "get_potential_move_damage move: #{move.name}, ret: #{ret}\n"
       return ret
     end
 

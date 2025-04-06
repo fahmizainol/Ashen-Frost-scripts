@@ -965,9 +965,15 @@ PBAI::ScoreHandler.add("SwitchOutTargetStatusMove", "SwitchOutTargetDamagingMove
       score += 1
       PBAI.log_score("+ 1 for making a more favorable matchup")
     end
+    
     dead = 0
-    target.moves.each {|move| dead += 1 if !move.statusMove? && user.get_calc(target,move) >= user.hp}
-    if user.bad_against?(target) && target.faster_than?(user) && dead == 0
+    halfdead = 0
+    target.moves.each do |move|
+       dead += 1 if !move.statusMove? && user.get_calc(target,move) >= user.hp
+       halfdead += 1 if !move.statusMove? && user.get_calc(target,move) >= user.hp/2
+    end
+    
+    if user.bad_against?(target) && target.faster_than?(user) && dead == 0 && halfdead == 0
       score += 5
       PBAI.log_score("+ 5 for gaining switch initiative against a bad matchup")
     end
