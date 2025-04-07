@@ -435,7 +435,7 @@ class PBAI
     def pbBaseDamage(baseDmg, user, target)
       move = @move
       baseDmg = move.baseDamage
-      baseDmg = 60 if baseDmg == 1
+      # baseDmg = 60 if baseDmg == 1
       # Covers all function codes which have their own def pbBaseDamage
       case @function
       # Sonic Boom, Dragon Rage, Super Fang, Night Shade, Endeavor
@@ -523,13 +523,27 @@ class PBAI
         else
           baseDmg = (baseDmg * 31 / 10).floor   # Average damage dealt
         end
-      when "HitOncePerUserTeamMember"   # Beat Up
-        mult = 0
-        party = @battle.pbParty(user.index)
-        party.each do |pkmn|
-          mult += 1 if pkmn&.able? && pkmn.status == :NONE
+      # when "HitOncePerUserTeamMember"   # Beat Up
+      #   mult = 0
+      #   party = @battle.pbParty(user.index)
+      #   party.each do |pkmn|
+      #     mult += 1 if pkmn&.able? && pkmn.status == :NONE
+      #   end
+      #   baseDmg *= mult
+      when "HitOncePerUserTeamMember"   # DemICE beat up was being calculated very wrong.
+        beatUpList = []
+        @battle.eachInTeamFromBattlerIndex(user.index) do |pkmn,i|
+          next if !pkmn.able? || pkmn.status != :NONE
+          beatUpList.push(i)
         end
-        baseDmg *= mult
+        baseDmg = 0
+        for i in beatUpList
+          atk = @battle.pbParty(user.index)[i].baseStats[:ATTACK]
+          # echoln "atk: #{atk}"
+          baseDmg+= 5+(atk/10)
+        end  
+        # echoln "beatup baseDmg: #{baseDmg}"
+        baseDmg *= 1.5 if user.hasActiveAbility?(:TECHNICIAN)
       when "TwoTurnAttackOneTurnInSun"   # Solar Beam
         baseDmg = move.pbBaseDamageMultiplier(baseDmg, user, target)
       when "MultiTurnAttackPowersUpEachTurn"   # Rollout
@@ -744,7 +758,10 @@ class PBAI
       # Calculate whether this hit deals critical damage
       target.damageState.critical = pbIsCritical?(user, target)
       # Calcuate base power of move
+      # echoln "move name: #{@move.name}"
+      # echoln "base dmg b4: #{@move.baseDamage}"
       baseDmg = pbBaseDamage(@move.baseDamage, user, target)
+      # echoln "base dmg aft: #{baseDmg}"
       # Calculate user's attack stat
       atk, atkStage = pbGetAttackStats(user, target)
       if !target.hasActiveAbility?(:UNAWARE) || @battle.moldBreaker
@@ -765,7 +782,6 @@ class PBAI
         :final_damage_multiplier => 1.0
       }
       mult = pbCalcDamageMultipliers(user, target, numTargets, @move.type, baseDmg, multipliers)
-      # echoln "mult: #{mult}"
       
       # Main damage calculation
       baseDmg = [(baseDmg * mult[:base_damage_multiplier]).round, 1].max
@@ -773,6 +789,7 @@ class PBAI
       defense = [(defense * mult[:defense_multiplier]).round, 1].max
       damage  = ((((2.0 * user.level / 5) + 2).floor * baseDmg * atk / defense).floor / 50).floor + 2
       dmg  = [(damage * mult[:final_damage_multiplier]).round, 1].max
+      # echoln "\nmovename #{@move.name} mult: #{mult} dmg: #{dmg}"
       $test_trigger = false
       return dmg
     end
@@ -1410,7 +1427,7 @@ class PBAI
           end
           pk.set_calc(target,new_hash)
         end
-      #PBAI.log(str)
+      PBAI.log(str)
     end
 
     def calc_all_self(target)
@@ -1441,7 +1458,7 @@ class PBAI
         end
         pk.set_self_calc(target,new_hash)
       end
-      #PBAI.log(str)
+      PBAI.log(str)
     end
 
     def calc_self(target)
@@ -1459,7 +1476,7 @@ class PBAI
         str += "\n#{move.name} => #{calc[move.id]}"
       end
       self.set_self_calc(target,calc)
-      #PBAI.log(str)
+      PBAI.log(str)
     end
 
     def get_calc(target,move)
@@ -1492,7 +1509,7 @@ class PBAI
         str += "\n#{move.name} => #{calc[move.id]}\n"
       end
       self.set_calc(target,calc)
-      #PBAI.log(str)
+      PBAI.log(str)
     end
 
     def assess_threats(target)
@@ -1618,7 +1635,8 @@ class PBAI
       immune = []
 
       # Calculates whether to use an item
-      item_score = get_item_score
+      # item_score = get_item_score
+      item_score = [0,0]
       # Yields [score, item, target&]
       scores << [:ITEM, *item_score]
 
@@ -3116,6 +3134,7 @@ class PBAI
       calcType = mov.pbCalcType(user)
       mon.damageState.typeMod = mov.pbCalcTypeMod(calcType, user, mon)
       # echoln "mon.damageState.typeMod: #{mon.damageState.typeMod}\n"
+      # echoln "name : #{move.name} basedamage: #{move.baseDamage}\n"
       ret = mov.pbCalcDamage(user, mon)
       sturdy = (target.hasActiveAbility?(:STURDY) && !@battle.moldBreaker || target.hasActiveItem?(:FOCUSSASH))
       if ret >= target.hp && target.hp == target.totalhp && sturdy

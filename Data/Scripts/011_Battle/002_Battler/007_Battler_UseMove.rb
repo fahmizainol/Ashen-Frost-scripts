@@ -632,9 +632,11 @@ class Battle::Battler
         # pbCalcDamage shows the "eat berry" animation for SE-weakening
         # berries, although the message about it comes after the additional
         # effect below
+        
         move.pbCalcDamage(user, b, targets.length)   # Stored in damageState.calcDamage IMPORTANT
         # Lessen damage dealt because of False Swipe/Endure/etc.
         move.pbReduceDamage(user, b)   # Stored in damageState.hpLost
+        # echoln "name : #{move.name} real dmg: #{b.damageState.hpLost}\n"
         # print(b.damageState.hpLost)
         # print(b.damageState.totalHPLost)
       end
