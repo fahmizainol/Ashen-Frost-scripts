@@ -551,7 +551,7 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
     best = 0
     target.moves.each do |move|
       next if move.statusMove?
-      echoln "i m switchahandler"
+      # echoln "i m switchahandler"
       # echoln "target: #{target}"
       dmg = target.get_potential_move_damage(mon, move) # FIXME: battler should be passed here since we're calcing the player's move against ai
       moves += 1 if dmg >= mon.hp/2

@@ -1,12 +1,12 @@
 class PBAI
   def self.log_threat(battler,score,msg)
-    if $DEBUG
+    # if $DEBUG
       if score >= 0
         echoln "[AI Threat Assessment: #{battler.pokemon.name}] +#{score}: " + msg
       else
         echoln "[AI Threat Assessment: #{battler.pokemon.name}] #{score}: " + msg
       end
-    end
+    # end
   end
 
   def self.burn_threat
@@ -34,8 +34,12 @@ class PBAI
     able_targets.each do |opp|
       tar = opp.pbMakeFakeBattler(opp.pokemon)
       battler.moves.each do |move|
-        PBAI.log_ai("#{battler.pokemon.name} using #{move.name} vs #{tar.name}: #{battler.get_potential_move_damage(tar,move)}/#{opp.pokemon.hp}")
-        dmg += 1 if battler.get_potential_move_damage(tar,move) >= opp.pokemon.hp
+        # dmg += 1 if battler.get_potential_move_damage(tar,move) >= opp.pokemon.hp
+        if battler.get_potential_move_damage(tar,move) >= opp.pokemon.hp
+          PBAI.log_ai("#{battler.pokemon.name} using #{move.name} vs #{tar.name}: #{battler.get_potential_move_damage(tar,move)}/#{opp.pokemon.hp}")
+          dmg += 1
+          break
+        end
       end
       fast += 1 if battler.effective_speed > opp.effective_speed
     end
@@ -55,10 +59,13 @@ class PBAI
       score -= fast
       PBAI.log_threat(battler,fast*-1,"We outspeed #{fast} mons in the opposing party")
     end
+    PBAI.log_ai("\n")
     return score
   end
 
   def self.threat_damage(battler,target)
+    echoln "threat dmg battler type: #{battler.class}"
+    echoln "threat dmg battler target: #{target.class}"
     score = 0
     if battler.fast_kill?(target)
       score -= 3
@@ -138,7 +145,6 @@ PBAI::ThreatHandler.add do |score,ai,battler,target|
   score += PBAI.threat_damage(battler,target)
   next score
 end
-=begin
 # Specific Ability Threat Scoring
 PBAI::ThreatHandler.add do |score,ai,battler,target|
   ability_list = {
@@ -179,6 +185,7 @@ end
 
 # Assessing threats based on player party roles
 PBAI::ThreatHandler.add do |score,ai,battler,target|
+  echoln "im assesing threasts based on player party roles"
   party = ai.battle.pbParty(target.index)
   roles = {}
   weather = {
@@ -207,6 +214,7 @@ PBAI::ThreatHandler.add do |score,ai,battler,target|
   }
   party.each do |pkmn|
     roles[pkmn] = pkmn.assign_roles
+    echoln "#{pkmn.name} has roles #{roles[pkmn]}"
   end
   if roles[target.pokemon].include?(:WEATHERTERRAIN) && party.any? {|mon| !mon.fainted? && roles[mon].include?(:WEATHERTERRAINABUSER)}
     for key in weather.keys
@@ -322,7 +330,6 @@ PBAI::ThreatHandler.add do |score,ai,battler,target|
   PBAI.log_threat(plus,"for each move that abuses #{target.abilityName}")
   next score
 end
-=end
 # Assessing threats to entire party: ALWAYS LAST TO ASSIGN HIGHEST SCORE TO A MON THAT CAN WIPE THE ENTIRE TEAM
 PBAI::ThreatHandler.add_single do |score,ai,battler,target|
   party = ai.battle.pbParty(battler.index)

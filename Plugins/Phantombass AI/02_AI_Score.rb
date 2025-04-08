@@ -363,6 +363,7 @@ PBAI::ScoreHandler.add_damaging do |score, ai, user, target, move|
   next score
 end
 
+# TODO: Tweak
 # Encourage using offense boosting setup moves if neither of us can kill.
 PBAI::ScoreHandler.add do |score, ai, user, target, move|
   next if !PBAI::AI_Move.offense_setup_move?(move)
@@ -2297,7 +2298,7 @@ PBAI::ScoreHandler.add_final do |score, ai, user, target, move|
     prio_kill = true if user.get_calc(target,t) >= user.hp && t.priority > 0
   end
   faster = user.faster_than?(target)
-  fast_kill = faster
+  fast_kill = faster && !prio_kill
   slow_kill = !faster && count == 0 && o_count > 0
   user_slow_kill = !faster && o_count == 0 && count > 0
   target_fast_kill = (!faster && o_count > 0) || prio_kill
@@ -2314,11 +2315,15 @@ PBAI::ScoreHandler.add_final do |score, ai, user, target, move|
     PBAI.log_score("+ #{add} to get a last ditch status off against target")
   end
   if count > 0
+    # echoln prio_kill
+    # echoln o_count
     if move.damagingMove? && user.get_calc_self(target, move) >= target.hp
       if fast_kill
+        # echoln "im fast kill"
         add = 15
       elsif target_fast_kill
-        add = 5
+        # echoln "im target fast kill"
+        add = -15
       elsif user_slow_kill
         add = 12
       else
@@ -2326,7 +2331,7 @@ PBAI::ScoreHandler.add_final do |score, ai, user, target, move|
       end
       score += add
       if target_fast_kill
-        PBAI.log_score("+ 5 because we kill even though they kill us first")
+        PBAI.log_score("+ #{add} because we kill even though they kill us first")
       elsif fast_kill
         PBAI.log_score("+ #{add} for fast kill")
       elsif user_slow_kill

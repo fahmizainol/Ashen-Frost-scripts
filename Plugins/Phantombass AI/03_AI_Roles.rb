@@ -373,6 +373,7 @@ class Pokemon
     return x.include?(role) && !role.is_a?(Array)
   end
 
+  # TODO: Not used?
   def assign_roles
     roles = []
     physical_moves = 0
