@@ -1028,6 +1028,7 @@ class PBAI
       @shown_item = false
       @skill = wild_pokemon && !$game_switches[990] ? 0 : 200
       @flags = {}
+      # @pokemon.assign_roles
     end
 
     alias original_missing method_missing
@@ -2229,21 +2230,31 @@ class PBAI
 
         self_party.push(mon) if prj.pokemon.owner.id == pokemon.owner.id && !mon.fainted? && pokemon != prj.pokemon
       end
+      targets = opposing_side.battlers.clone
+      @side.battlers.each do |proj|
+        next if proj == self || proj.nil? || proj.index == index + 2 || proj.index == index - 2
+
+        targets << proj
+      end
       matchup = self_party.map do |pkmn|
+        str += "\n\nScoring for #{pkmn.name}"
         proj = @ai.pokemon_to_projection(pkmn)
+        # proj = @ai.pbMakeFakeBattler(pkmn)
+        # echoln "Proj type: #{proj.class}"
         raise "No projection found for party member #{pkmn.name}" unless proj
 
         offensive_score = 1.0
         defensive_score = 1.0
         score = 0
-        mon = begin
-          @ai.pbMakeFakeBattler(proj.pokemon)
-        rescue StandardError
-          nil
-        end
-        proj.opposing_side.battlers.each do |target|
+        # proj.opposing_side.battlers.each do |t|
+        targets.each do |target|
           next if target.nil?
 
+          # target.battler = pbMakeFakeBattler(target.pokemon)
+
+          # target = @ai.pokemon_to_projection(t.pokemon)
+          # target = t.pbMakeFakeBattler(t.pokemon)
+          # echoln "Target type: #{target.class}"
           if proj.fast_kill?(target)
             offensive_score += 13.0
             str += "\n+13.0 for fast kill"
@@ -2254,28 +2265,28 @@ class PBAI
             offensive_score -= 1.0
             str += "\n-1.0 for having no kill"
           end
-          if proj.target_has_killing_move?(target)
+          if proj.target_has_killing_move?(target) # FIXME: Doesnt work returns 0 damage. mon is null in get_pottential
             if proj.target_fast_kill?(target)
               defensive_score -= 5.0
-              str += "\n+5.0 defensive for target having fast kill"
+              str += "\n-5.0 defensive for target having fast kill"
             else
               defensive_score -= 3.0
-              str += "\n+3.0 defensive for target having slow kill"
+              str += "\n-3.0 defensive for target having slow kill"
             end
           elsif proj.target_has_2hko?(target)
             if !proj.fast_kill?(target)
               defensive_score -= 4.0
-              str += "\n+4.0 defensive for target having 2HKO and us not having a fast kill"
+              str += "\n-4.0 defensive for target having 2HKO and us not having a fast kill"
             elsif !proj.target_fast_kill?(target) && proj.slow_kill?(target)
-              defensive_score += 1.0
-              str += "\n-1.0 for target having no kill and us having slow kill"
+              defensive_score += 3.0
+              str += "\n+3.0 for target having no kill and us having slow kill"
             else
-              defensive_score += 2.0
-              str += "\n-2.0 defensive for target having 2HKO and us having a fast KO"
+              defensive_score += 5.0
+              str += "\n+5.0 defensive for target having 2HKO and us having a fast KO"
             end
           else # cannot 1hko or 2hko then consider good switch in
             defensive_score += 10.0
-            str += "\n-1.0 defensive for target having no kills"
+            str += "\n10.0 defensive for target having no kills"
           end
           if proj.faster_than?(target) && !proj.has_killing_move?(target) && !proj.target_has_killing_move?(target)
             offensive_score += 1.0
@@ -2285,19 +2296,23 @@ class PBAI
           # offensive_score += threat_mod
           # str += "\nThreat Preservation Modifier: #{threat_mod * -1}"
         end
-        str += "\nOffensive score for #{pkmn.name}: #{offensive_score}"
-        str += "\nDefensive score for #{pkmn.name}: #{defensive_score}"
+        str += "\nOffensive Score: #{offensive_score}"
+        str += "\nDefensive Score: #{defensive_score}"
         next [offensive_score, defensive_score, proj]
       end
       matchup.sort! do |a, b|
-        ret = (a[1] <=> b[1])
+        # Sort by total score (offensive + defensive) in descending order
+        total_a = a[0] + a[1]  # offensive + defensive for a
+        total_b = b[0] + b[1]  # offensive + defensive for b
+        ret = (total_b <=> total_a) # descending order
         next ret if ret != 0
 
+        # If total scores are equal, tiebreak by offensive score
         ret = (b[0] <=> a[0])
         next ret if ret != 0
 
+        # If offensive scores are also equal, tiebreak by total defenses
         next (b[2].pokemon.defense + b[2].pokemon.spdef) <=> (a[2].pokemon.defense + a[2].pokemon.spdef)
-        next b[2].pokemon.level <=> a[2].pokemon.level
       end
       # PBAI.log_ai(scores.map { |e| e[2].pokemon.name + ": (#{e[0]}, #{e[1]})" }.join("\n"))
       scores = matchup.map do |e|
@@ -2307,11 +2322,11 @@ class PBAI
         str += "\n="
         str += '=' * 29
         str += "\nScoring for #{e[2].pokemon.name}"
-        score = 2
+        score = 0
         score += e[0]
         str += "\n+ #{e[0]} for offensive matchup"
-        score -= e[1]
-        str += "\n- #{e[1]} for defensive matchup"
+        score += e[1]
+        str += "\n+ #{e[1]} for defensive matchup"
         if @battle.doublebattle
           score -= 10 if proj.pokemon.owner.id != pokemon.owner.id
           if proj.pokemon.owner.id != pokemon.owner.id
@@ -2412,15 +2427,6 @@ class PBAI
         next [offensive_score, defensive_score, proj]
       end
       PBAI.log(str)
-      # scores.sort! do |a, b|
-      #   ret = (a[1] <=> b[1])
-      #   next ret if ret != 0
-
-      #   ret = (b[0] <=> a[0])
-      #   next ret if ret != 0
-
-      #   next (b[2].pokemon.defense + b[2].pokemon.spdef) <=> (a[2].pokemon.defense + a[2].pokemon.spdef)
-      # end
       scores.sort! do |a, b|
         # Sort by total score (offensive + defensive) in descending order
         total_a = a[0] + a[1]  # offensive + defensive for a
@@ -3063,11 +3069,11 @@ class PBAI
     end
 
     def target_has_killing_prio_move?(target)
-      for move in target.moves
-        echoln 'target_has_killing_priomove'
-        echoln "move: #{move.name} base: #{move.baseDamage} calc damage: #{target.get_potential_move_damage(self,
-                                                                                                            move)}"
-      end
+      # for move in target.moves
+      #   echoln 'target_has_killing_priomove'
+      #   echoln "move: #{move.name} base: #{move.baseDamage} calc damage: #{target.get_potential_move_damage(self,
+      #                                                                                                       move)}"
+      # end
       target.moves.any? do |move|
         move.priority > 0 && target.get_potential_move_damage(self, move) >= pokemon.hp + 8
       end
@@ -3294,6 +3300,17 @@ class PBAI
         end
       end
       mod
+    end
+
+    def calculate_hits_to_kill_with_best_move(target)
+      best_dmg = 1
+        moves.each do |move|
+          temp_dmg = get_potential_move_damage(target, move)
+          best_dmg = temp_dmg if temp_dmg > best_dmg
+          
+        end
+      turns_to_kill = (target.hp/best_dmg).ceil
+      turns_to_kill
     end
 
     # Whether the type matchup between the user and target is favorable

@@ -203,6 +203,8 @@ end
 
 # Matchup and Speed based
 PBAI::SwitchHandler.add_out do |score,ai,battler,target|
+  ttk = battler.calculate_hits_to_kill_with_best_move(target)
+  echoln "ttk : #{ttk}"
   move = 0
   move2 = 0
   target_moves = target.moves
@@ -217,10 +219,10 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
       score -= 5
       PBAI.log_switch_out(-5,"We have slow kill")
     elsif battler.target_fast_kill?(target)
-      score += 2
-      PBAI.log_switch_out(2,"Target has fast kill")
+      score += 4
+      PBAI.log_switch_out(4,"Target has fast kill")
     end
-  elsif target.bad_against?(battler)
+  elsif battler.bad_against?(target)
     score -= 2
     PBAI.log_switch_out(-2,"Do not switch if target is bad against us")
   end
@@ -397,6 +399,30 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
   next score
 end
 
+# Establish setup fodder and score 
+PBAI::SwitchHandler.add_out do |score,ai,battler,target|
+  target_moves = target.moves
+  threat_moves = 0
+  battler.opposing_side.battlers.each do |target|
+    next if target.nil?
+    next if ai.battle.wildBattle?
+    next if target_moves == nil
+      target_moves.each do |move|
+        next if move.statusMove?
+        # TODO: might wanna consider status moves like burned, frostbite, etc
+        dmg = target.get_potential_move_damage(battler, move)
+        threat_moves += 1 if dmg >= battler.hp/2
+      end
+  end
+  if threat_moves == 0
+    $learned_flags[:setup_fodder].push(target)
+    add = battler.setup? ? -4 : 4
+    score += add
+    PBAI.log_switch_out(add,"Establishing setup fodder since they have no threatening moves")
+  end
+  next score
+
+end
 # Establish setup fodder and score if we can't set up and can't 2HKO
 PBAI::SwitchHandler.add_out do |score,ai,battler,target|
   target_moves = target.moves
@@ -562,7 +588,6 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
     PBAI.log("Good moves against #{pkmn.name}: #{moves}")
     if moves == 0 && best > 0
       add += 1 # So this determined by how much good switch ins ai has, not how good the potential switch in 
-      score += 3
     end
   end
   if add > 0
@@ -601,6 +626,7 @@ PBAI::SwitchHandler.add_out do |score,ai,battler,target|
   end
   next score
 end
+
 #=======================
 # Code for Weather Abusers for later
 #=======================
